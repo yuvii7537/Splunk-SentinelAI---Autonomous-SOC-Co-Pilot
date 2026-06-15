@@ -1,0 +1,35 @@
+Inspiration
+In modern Security Operations Centers (SOCs), analysts are drowning in data. Alert fatigue is one of the most critical vulnerabilities in cybersecurity today. When a high-fidelity alert fires in Splunk, an analyst typically spends 30 to 45 minutes manually pivoting through logs, crafting complex Search Processing Language (SPL) queries, and determining the "blast radius" of the attack.
+We realized that while Splunk is unparalleled at aggregating data, the bottleneck is human cognitive load. We were inspired to build Splunk SentinelAI to act as an autonomous SOC co-pilot—bridging the gap between raw data and immediate action using Splunk's latest Generative AI capabilities.
+
+What it does
+Splunk SentinelAI is an AI-powered agent that drastically accelerates threat investigation. When a critical alert is triggered, SentinelAI autonomously:
+Summarizes the raw, technical JSON payload into a plain-English threat narrative.
+Translates natural language into executable Splunk SPL to search for surrounding events (blast radius).
+Correlates the data to extract key Indicators of Compromise (IoCs) like IPs, hashes, and users.
+Generates a dynamic, step-by-step remediation playbook, offering one-click SOAR integrations to isolate hosts or block IPs.
+
+ How we built it
+We built the application using a modern, lightweight tech stack designed for rapid deployment:
+Frontend: Built with Streamlit to create a clean, responsive, and intuitive analyst dashboard.
+Backend: Python 3.10 handling the routing, state management, and API calls.
+Integration Engine: Custom Python connectors that interface directly with the Splunk REST API (using Webhooks for real-time alert ingestion).
+AI Layer: We leveraged LLMs to parse security context. To dynamically score the severity and confidence of the AI's generated insights, we implemented a custom probabilistic weighting function.
+Using LaTeX, our underlying Threat Confidence Score (CthreatC threat ) can be represented as a weighted probability of extracted IoCs (II) and log density anomaly (ΔlogsΔ logs ): $$ C_{threat} = \left( \sum_{i=1}^{n} w_i \cdot P(I_i | attack) \right) \times \frac{1}{1 + e^{-\lambda (\Delta_{logs})}} $$
+Where wi represents the severity weight of the specific IoC, and the sigmoid function normalizes the sudden spike in log volume around the timestamp of the alert.
+
+ Challenges we ran into
+Natural Language to SPL Translation: Splunk's SPL is incredibly powerful but highly syntactical. Getting an LLM to reliably generate executable SPL without hallucinations was difficult. We overcame this by using few-shot prompting, providing the AI with schema definitions and common query templates (e.g., index=main sourcetype=WinEventLog:Security).
+Preventing Dangerous Hallucinations: In cybersecurity, an AI recommending the shutdown of a critical production server is a disaster. We implemented strict guardrails and a "Human-in-the-Loop" (HITL) architecture. SentinelAI recommends the playbook, but a human analyst must click the final "Isolate Host" button.
+Hackathon Environment Constraints: Standing up a live, data-rich Splunk Enterprise environment within the hackathon timeframe was tough. We solved this by building a robust Mock Mode into our Python backend, simulating API responses and log generation so the app can be seamlessly demoed anywhere.
+
+What we learned
+Prompt Engineering for Security: We learned how to meticulously craft system prompts that force LLMs to output strict JSON structures rather than conversational text, which was essential for our UI components.
+Splunk Architecture: We gained a deep appreciation for the Splunk REST API and how seamlessly it can be extended using external Python agents.
+Streamlit State Management: We learned how to manage complex user sessions and asynchronous API loading states in Streamlit to make the UI feel instantaneous.
+
+What's next for Splunk SentinelAI
+This hackathon is just the beginning. Our roadmap for SentinelAI includes:
+Direct Splunk SOAR Integration: Connecting our "One-Click Remediation" buttons directly to Splunk SOAR playbooks.
+Multi-modal AI: Allowing the AI to generate and analyze visual network graphs of the attack chain.
+Proactive Threat Hunting: Shifting SentinelAI from a reactive agent (waiting for alerts) to a proactive agent that autonomously queries Splunk data during idle time to hunt for advanced persistent threats (APTs).
