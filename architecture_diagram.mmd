@@ -1,0 +1,24 @@
+graph TD
+    %% Entities
+    Splunk[Splunk Enterprise / Cloud]
+    Sentinel[SentinelAI Python App]
+    Agent[AI Agent Router]
+    GenAI[Splunk AI / LLM]
+    Dash[Streamlit Analyst Dashboard]
+    SOAR[Firewall / SOAR API]
+
+    %% Data Flow
+    Splunk -->|1. Triggers Webhook Alert| Sentinel
+    Sentinel -->|2. Raw Log Data| Agent
+    Agent -->|3. Request Summarization & SPL| GenAI
+    GenAI -->|4. Natural Language to SPL| Agent
+    Agent -->|5. Run generated SPL query| Splunk
+    Splunk -->|6. Blast Radius Context| Agent
+    Agent -->|7. Generate Remediation Playbook| GenAI
+    GenAI -->|8. Final Playbook| Dash
+    Dash -->|9. One-Click Isolate/Block| SOAR
+
+    %% Styling
+    style Splunk fill:#000000,stroke:#22B14C,stroke-width:2px,color:#fff
+    style Dash fill:#FF5722,stroke:#333,stroke-width:2px,color:#fff
+    style GenAI fill:#FF1493,stroke:#333,stroke-width:2px,color:#fff
