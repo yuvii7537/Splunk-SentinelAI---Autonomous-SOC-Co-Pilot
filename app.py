@@ -4,12 +4,85 @@ import os
 from ai_agent import SecurityAgent
 from splunk_connector import SplunkConnector
 
+# Setup Page Configuration (MUST BE FIRST)
 st.set_page_config(page_title="Splunk SentinelAI", page_icon="🛡️", layout="wide")
 
+# --- UI OVERHAUL: CUSTOM CSS ---
+custom_css = """
+<style>
+    /* Hide Streamlit default branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Global App Background */
+    .stApp {
+        background-color: #0B0E14;
+    }
+    
+    /* Style Metric Cards to look like floating dashboard widgets */
+    [data-testid="stMetricValue"] {
+        color: #00FF00 !important; /* Neon Green */
+        font-size: 2.2rem !important;
+        font-weight: 800 !important;
+    }
+    [data-testid="metric-container"] {
+        background-color: #161A22;
+        border-left: 4px solid #00FF00;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 255, 0, 0.1);
+    }
+    
+    /* Standard Buttons Outline (Neon Green) */
+    .stButton>button {
+        background-color: transparent;
+        color: #00FF00;
+        border: 1px solid #00FF00;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #00FF00;
+        color: #000000;
+        box-shadow: 0 0 10px #00FF00;
+    }
+    
+    /* Primary Action Button (Magenta Glow) */
+    .stButton>button[kind="primary"] {
+        background-color: #FF1493; 
+        color: white;
+        border: none;
+        font-weight: bold;
+    }
+    .stButton>button[kind="primary"]:hover {
+        background-color: #FF69B4;
+        box-shadow: 0 0 15px #FF1493;
+        color: white;
+    }
+    
+    /* Alert details box styling */
+    .stCodeBlock {
+        border-left: 4px solid #FF1493;
+    }
+    
+    /* AI Chat Bubble styling */
+    .stChatMessage {
+        background-color: #161A22;
+        border: 1px solid #333;
+        border-radius: 8px;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+# -------------------------------
+
+# Initialize modules
 use_mock = os.getenv("USE_MOCK_DATA", "True").lower() == "true"
 splunk = SplunkConnector(use_mock=use_mock)
 ai_agent = SecurityAgent(use_mock=use_mock)
 
+# Session State Setup
 if 'selected_alert' not in st.session_state:
     st.session_state.selected_alert = None
 if 'investigating' not in st.session_state:
@@ -17,17 +90,19 @@ if 'investigating' not in st.session_state:
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
+# Header
 st.title("🛡️ Splunk SentinelAI")
 st.markdown("### Autonomous SOC Co-Pilot powered by Splunk AI")
 st.markdown("---")
 
+# Sidebar
 with st.sidebar:
     st.image("https://www.vectorlogo.zone/logos/splunk/splunk-icon.svg", width=80)
     st.markdown("## System Status")
     st.success("Splunk Connection: Online" if not use_mock else "Splunk Connection: MOCK MODE")
     st.success("AI Engine: Active")
     st.markdown("---")
-    st.markdown("### Triage Queue")
+    st.markdown("### 🚨 Triage Queue")
     
     alerts = splunk.get_alerts()
     for alert in alerts:
@@ -36,11 +111,12 @@ with st.sidebar:
             st.session_state.investigating = False
             st.session_state.chat_history = [{"role": "assistant", "content": f"Hello! I am SentinelAI. How can I help you investigate alert {alert['id']}?"}]
 
+# Main Panel
 if not st.session_state.selected_alert:
     st.info("👈 Select an alert from the Triage Queue to begin AI-assisted investigation.")
     col1, col2, col3 = st.columns(3)
     col1.metric("Open Alerts", len(alerts))
-    col2.metric("Mean Time to Triage (MTTT)", "45s", "-90%")
+    col2.metric("Mean Time to Triage", "45s", "-90%")
     col3.metric("AI Auto-Resolutions", "12", "+3")
 
 else:
@@ -63,19 +139,16 @@ else:
             time.sleep(1.5) 
             analysis = ai_agent.analyze_alert(alert)
             
-            # --- NEW FEATURE: AI Confidence Score ---
             st.markdown(f"**AI Threat Confidence Score:** `{analysis['confidence_score']}%`")
             st.progress(analysis['confidence_score'] / 100.0)
             st.write("")
             
-            # Display Tabs
             tab1, tab2, tab3, tab4 = st.tabs(["🧠 AI Summary & IoCs", "🔍 Generated SPL", "🛠️ Remediation", "💬 Chat with Copilot"])
             
             with tab1:
                 st.markdown("### Plain-English Threat Summary")
                 st.write(analysis["summary"])
                 
-                # --- NEW FEATURE: MITRE Mapping ---
                 st.markdown("### 🎯 MITRE ATT&CK Framework Mapping")
                 for tactic in analysis["mitre_tactics"]:
                     st.markdown(f"🛡️ `{tactic}`")
@@ -89,7 +162,7 @@ else:
                 st.code(analysis["spl_query"], language="sql")
                 st.markdown("### Surrounding Log Context (Blast Radius)")
                 logs = splunk.run_spl_query(analysis["spl_query"])
-                st.dataframe(logs)
+                st.dataframe(logs, use_container_width=True)
                 
             with tab3:
                 st.markdown("### Recommended Remediation Playbook")
@@ -103,23 +176,17 @@ else:
                 if colB.button("🔒 Suspend User", use_container_width=True):
                     st.warning(f"User {alert['user']} has been suspended.")
 
-            # --- NEW FEATURE: Live SOC Chatbot ---
             with tab4:
                 st.markdown("### Ask SentinelAI Follow-up Questions")
-                
-                # Display chat history
                 for message in st.session_state.chat_history:
                     with st.chat_message(message["role"]):
                         st.markdown(message["content"])
 
-                # Chat input
                 if prompt := st.chat_input("E.g., 'What should I do about the IP address?'"):
-                    # Add user message to state
                     st.session_state.chat_history.append({"role": "user", "content": prompt})
                     with st.chat_message("user"):
                         st.markdown(prompt)
 
-                    # Get AI response
                     with st.chat_message("assistant"):
                         with st.spinner("Thinking..."):
                             time.sleep(1)
